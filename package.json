@@ -1,6 +1,6 @@
 {
   "name": "ai-creative-os-desktop",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "description": "AI Creative OS hybrid desktop with safe local data and release updater",
   "main": "main.js",
@@ -8,7 +8,8 @@
     "start": "electron .",
     "dev": "electron .",
     "dist:win": "electron-builder --win nsis --x64",
-    "pack:win": "electron-builder --win dir --x64"
+    "pack:win": "electron-builder --win dir --x64",
+    "test": "node --test"
   },
   "devDependencies": {
     "electron": "^35.0.0",
@@ -26,6 +27,8 @@
     "files": [
       "main.js",
       "preload.js",
+      "logger.js",
+      "storage.js",
       "app.js",
       "index.html",
       "style.css",
@@ -50,8 +53,8 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "briananggarenanda",
-        "repo": "ai-creative-os",
+        "owner": "1bnu-com",
+        "repo": "ai-creative-os-desktop",
         "releaseType": "release"
       }
     ]
