@@ -8,7 +8,8 @@
     "start": "electron .",
     "dev": "electron .",
     "dist:win": "electron-builder --win nsis --x64",
-    "pack:win": "electron-builder --win dir --x64"
+    "pack:win": "electron-builder --win dir --x64",
+    "test": "node --test"
   },
   "devDependencies": {
     "electron": "^35.0.0",
@@ -26,6 +27,8 @@
     "files": [
       "main.js",
       "preload.js",
+      "logger.js",
+      "storage.js",
       "app.js",
       "index.html",
       "style.css",
