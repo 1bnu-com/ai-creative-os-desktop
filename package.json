@@ -53,8 +53,8 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "briananggarenanda",
-        "repo": "ai-creative-os",
+        "owner": "1bnu-com",
+        "repo": "ai-creative-os-desktop",
         "releaseType": "release"
       }
     ]
