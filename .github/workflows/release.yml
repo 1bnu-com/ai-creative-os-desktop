@@ -29,7 +29,30 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Create version tag (manual run)
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          V="v$(node -p "require('./package.json').version")"
+          if git ls-remote --exit-code --tags origin "refs/tags/$V" >/dev/null; then
+            echo "Tag $V sudah ada"
+          else
+            git tag "$V"
+            git push origin "$V"
+          fi
+
       - name: Build Windows installer
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx electron-builder --win nsis --x64 --publish always
+
+      - name: Keep installer as build artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: |
+            release/*.exe
+            release/*.blockmap
+            release/latest.yml
+          if-no-files-found: warn
