@@ -50,8 +50,8 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "SET_GITHUB_OWNER",
-        "repo": "SET_GITHUB_REPO",
+        "owner": "briananggarenanda",
+        "repo": "ai-creative-os",
         "releaseType": "release"
       }
     ]
