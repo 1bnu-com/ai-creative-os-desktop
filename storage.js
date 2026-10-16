@@ -24,7 +24,15 @@ function safeProject(p) {
   for (const k of PROJECT_FIELDS) if (p && Object.prototype.hasOwnProperty.call(p, k)) o[k] = p[k];
   if (!ALLOWED_CATEGORIES.includes(o.category)) o.category = '';
   o.id = String(o.id || crypto.randomUUID());
+  if (o.video) o.video = normalizeVideo(o.video);
   return o;
+}
+
+// Old versions stored absolute paths (C:\Users\...\media\x.mp4). Store "media/x.mp4"
+// so links survive a restore on another computer or a different Windows user.
+function normalizeVideo(v) {
+  const m = String(v).match(/(?:^|[\\/])media[\\/]([^\\/]+)$/);
+  return m ? 'media/' + m[1] : String(v);
 }
 
 function isValidDb(d) {
@@ -131,6 +139,7 @@ function createStore({ dir, seed = [], log = () => {} }) {
     try {
       const d = readJson(dbPath);
       if (!isValidDb(d)) throw new Error('struktur projects tidak ditemukan');
+      for (const p of d.projects) if (p && p.video) p.video = normalizeVideo(p.video);
       return d;
     } catch (e) {
       // Damaged database: keep a copy, then try the newest valid backup. Never fall back to seed silently.
@@ -170,8 +179,42 @@ function createStore({ dir, seed = [], log = () => {} }) {
     const clean = { ...imported, schemaVersion: imported.schemaVersion || CURRENT_SCHEMA, projects: imported.projects.map(safeProject) };
     state.readOnly = false; state.error = null;
     writeAtomic(dbPath, clean);
-    log('info', `Restore dari ${file}. Data sebelumnya: ${before || '(tidak ada)'}`);
+    const videos = copyMedia(path.join(path.dirname(file), 'media'), mediaDir);
+    log('info', `Restore dari ${file} (${videos} video disalin). Data sebelumnya: ${before || '(tidak ada)'}`);
     return clean;
+  }
+
+  const mediaDir = path.join(dir, 'media');
+
+  // "media/x.mp4" -> absolute path inside userData/media. Returns null for anything outside it.
+  function resolveMedia(v) {
+    const rel = normalizeVideo(v || '');
+    if (!rel.startsWith('media/')) return null;
+    const abs = path.resolve(dir, rel);
+    return abs.startsWith(mediaDir + path.sep) ? abs : null;
+  }
+
+  function copyMedia(fromDir, toDir) {
+    if (!fs.existsSync(fromDir)) return 0;
+    fs.mkdirSync(toDir, { recursive: true });
+    let n = 0;
+    for (const name of fs.readdirSync(fromDir)) {
+      const src = path.join(fromDir, name), dest = path.join(toDir, name);
+      if (!fs.statSync(src).isFile() || fs.existsSync(dest)) continue;
+      fs.copyFileSync(src, dest); n++;
+    }
+    return n;
+  }
+
+  // Full backup: a folder with creative-os.json + every attached video.
+  function exportFull(parentDir) {
+    if (!fs.existsSync(dbPath)) throw new Error('Belum ada data untuk dibackup.');
+    const out = path.join(parentDir, `AI-Creative-OS-backup-${stamp()}`);
+    fs.mkdirSync(out, { recursive: true });
+    fs.copyFileSync(dbPath, path.join(out, DB_FILE));
+    const videos = copyMedia(mediaDir, path.join(out, 'media'));
+    log('info', `Backup lengkap: ${out} (${videos} video)`);
+    return { folder: out, videos };
   }
 
   function exportTo(file) {
@@ -180,7 +223,7 @@ function createStore({ dir, seed = [], log = () => {} }) {
     return true;
   }
 
-  return { dbPath, backupDir, migrationDir, state, load, save, migrate, backupNow, listBackups, autoBackupIfDue, importFrom, exportTo };
+  return { dbPath, backupDir, mediaDir, resolveMedia, exportFull, migrationDir, state, load, save, migrate, backupNow, listBackups, autoBackupIfDue, importFrom, exportTo };
 }
 
-module.exports = { createStore, safeProject, CURRENT_SCHEMA, AUTO_BACKUP_KEEP, AUTO_BACKUP_INTERVAL_MS };
+module.exports = { createStore, safeProject, normalizeVideo, CURRENT_SCHEMA, AUTO_BACKUP_KEEP, AUTO_BACKUP_INTERVAL_MS };

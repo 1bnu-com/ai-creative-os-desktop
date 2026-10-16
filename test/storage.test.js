@@ -136,3 +136,35 @@ test('auto backup: at most once per hour, old ones pruned', () => {
   }
   assert.ok(autos().length <= AUTO_BACKUP_KEEP, `pruned to ${AUTO_BACKUP_KEEP}`);
 });
+
+test('video paths: old absolute paths become media/<file>; traversal rejected', () => {
+  const dir = tmpDir();
+  const s = createStore({ dir, seed: [] });
+  fs.writeFileSync(s.dbPath, JSON.stringify({ schemaVersion: 2, projects: [{ id: 'V', video: 'C:\\Users\\a\\AppData\\Roaming\\ai-creative-os-desktop\\media\\x.mp4' }] }));
+  const db = s.load();
+  assert.strictEqual(db.projects[0].video, 'media/x.mp4');
+  s.save(db);
+  assert.strictEqual(read(s.dbPath).projects[0].video, 'media/x.mp4');
+  assert.strictEqual(s.resolveMedia('media/x.mp4'), path.join(dir, 'media', 'x.mp4'));
+  assert.strictEqual(s.resolveMedia('media/../creative-os.json'), null);
+  assert.strictEqual(s.resolveMedia('D:\\lain\\y.mp4'), null);
+});
+
+test('full backup carries videos and restores them on another computer', () => {
+  const pcA = tmpDir();
+  const a = createStore({ dir: pcA, seed: WINNERS });
+  const db = a.load();
+  fs.mkdirSync(a.mediaDir, { recursive: true });
+  fs.writeFileSync(path.join(a.mediaDir, 'v1.mp4'), 'VIDEO-BYTES');
+  db.projects[0].video = 'media/v1.mp4';
+  a.save(db);
+  const out = a.exportFull(tmpDir());
+  assert.strictEqual(out.videos, 1);
+  const pcB = tmpDir();
+  const b = createStore({ dir: pcB });
+  b.load();
+  const restored = b.importFrom(path.join(out.folder, 'creative-os.json'));
+  assert.strictEqual(restored.projects[0].video, 'media/v1.mp4');
+  assert.strictEqual(fs.readFileSync(b.resolveMedia(restored.projects[0].video), 'utf8'), 'VIDEO-BYTES');
+  assert.strictEqual(restored.projects.filter(p => p.category === 'Winner').length, 5);
+});

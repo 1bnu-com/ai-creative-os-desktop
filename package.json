@@ -1,6 +1,6 @@
 {
   "name": "ai-creative-os-desktop",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "description": "AI Creative OS hybrid desktop with safe local data and release updater",
   "main": "main.js",

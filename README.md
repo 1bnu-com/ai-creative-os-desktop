@@ -36,4 +36,7 @@
 - Database rusak **tidak lagi diganti data awal**. Salinan disimpan sebagai `creative-os.damaged-*.json`, lalu dipulihkan otomatis dari backup terbaru. Jika tidak ada backup, penyimpanan dikunci agar tidak menimpa data.
 - Backup otomatis di folder `backups/` (maksimal 1x per jam saat menyimpan, 30 terakhir disimpan) dan selalu sebelum Restore (`before-restore-*.json`).
 - Log aplikasi: `logs/main.log`. Hanya satu jendela aplikasi yang boleh berjalan.
-- Tes: `npm test` (tidak butuh Electron).
+- Backup = folder `AI-Creative-OS-backup-<tanggal>` berisi `creative-os.json` + folder `media` (video ikut). Restore: pilih `creative-os.json` di folder itu; video ikut dipulihkan.
+- Path video disimpan relatif (`media/<file>`), jadi tidak putus saat pindah komputer.
+- Tes: `npm test` (tidak butuh Electron) dan `python3 tools/ui-smoke.py` (uji klik semua halaman di Chromium headless).
+- GitHub Actions menjalankan `npm test` sebelum build; build gagal bila tes gagal.

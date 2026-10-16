@@ -8,7 +8,7 @@ const os = require('os');
 const path = require('path');
 const Module = require('module');
 
-function bootMain({ appData, gotLock = true }) {
+function bootMain({ appData, gotLock = true, pickDir = null }) {
   const handlers = {}, dialogs = [], paths = { appData };
   const fakeElectron = {
     app: {
@@ -18,8 +18,8 @@ function bootMain({ appData, gotLock = true }) {
       on: () => {}, whenReady: () => Promise.resolve(),
     },
     ipcMain: { handle: (ch, fn) => { handlers[ch] = fn; } },
-    dialog: { showErrorBox: (t, m) => dialogs.push(['error', t, m]), showMessageBox: o => { dialogs.push(['message', o.title]); return Promise.resolve({}); } },
-    shell: { openPath: () => '' },
+    dialog: { showOpenDialog: async () => (pickDir ? { canceled: false, filePaths: [pickDir] } : { canceled: true, filePaths: [] }), showErrorBox: (t, m) => dialogs.push(['error', t, m]), showMessageBox: o => { dialogs.push(['message', o.title]); return Promise.resolve({}); } },
+    shell: { openPath: () => '', showItemInFolder: () => {} },
     BrowserWindow: class { constructor() { this.webContents = { once() {}, send() {}, setWindowOpenHandler() {}, on() {} }; } loadFile() {} isDestroyed() { return false; } },
   };
   const fakeUpdater = { autoUpdater: { on() {}, checkForUpdates: async () => {} } };
@@ -93,4 +93,22 @@ test('updater in dev mode reports not active instead of failing', async () => {
   const { handlers } = await bootMain({ appData });
   const s = await handlers['update:check']();
   assert.strictEqual(s.status, 'dev');
+});
+
+test('Backup button creates a folder with data and videos; video:open checks paths', async () => {
+  const appData = fs.mkdtempSync(path.join(os.tmpdir(), 'appdata-'));
+  const target = fs.mkdtempSync(path.join(os.tmpdir(), 'target-'));
+  const { handlers, paths } = await bootMain({ appData, pickDir: target });
+  const db = await handlers['db:load']();
+  fs.mkdirSync(path.join(paths.userData, 'media'), { recursive: true });
+  fs.writeFileSync(path.join(paths.userData, 'media', 'a.mp4'), 'v');
+  db.projects[0].video = 'media/a.mp4';
+  await handlers['db:save'](null, db);
+  assert.strictEqual(await handlers['db:export'](), true);
+  const folder = fs.readdirSync(target).find(n => n.startsWith('AI-Creative-OS-backup-'));
+  assert.ok(fs.existsSync(path.join(target, folder, 'creative-os.json')));
+  assert.ok(fs.existsSync(path.join(target, folder, 'media', 'a.mp4')));
+  assert.strictEqual(await handlers['video:open'](null, 'media/a.mp4'), '');
+  await assert.rejects(async () => handlers['video:open'](null, 'media/../creative-os.json'), /Invalid/);
+  await assert.rejects(async () => handlers['video:open'](null, 'media/hilang.mp4'), /tidak ditemukan/);
 });
